@@ -2,17 +2,35 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database');
 const crypto = require('crypto');
+const os = require('os');
+
+// Get the local network IP address
+function getLocalIP() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
 
 // Create payment token
 router.post('/create', (req, res) => {
   const { amount } = req.body;
-  
+
   console.log('Creating payment for amount:', amount);
-  
+
   // Generate unique payment token
   const paymentToken = crypto.randomBytes(16).toString('hex');
   console.log('Generated payment token:', paymentToken);
-  
+
+  // Get the local network IP
+  const localIP = getLocalIP();
+  console.log('Using local IP:', localIP);
+
   db.run(
     "INSERT INTO payment_tracking (payment_token, status, amount) VALUES (?, 'pending', ?)",
     [paymentToken, amount],
@@ -22,9 +40,9 @@ router.post('/create', (req, res) => {
         res.status(500).json({ error: err.message });
       } else {
         console.log('Payment created successfully with ID:', this.lastID);
-        res.json({ 
+        res.json({
           payment_token: paymentToken,
-          payment_url: `http://172.18.107.39:5000/api/payments/confirm/${paymentToken}`
+          payment_url: `http://${localIP}:5000/api/payments/confirm/${paymentToken}`
         });
       }
     }
